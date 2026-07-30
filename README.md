@@ -46,11 +46,69 @@ I implemented a smart task management system integrated with the financial assis
 
 Team Project
 
-## Screenshots
-### 💰 Expense Tracking
+# 📸 Screenshots
 
-The user records an expense using natural language.
-User adds an expense.jpeg
+## Welcome Screen
+
+The welcome interface of the AI Financial Assistant in Telegram.
+
+![Welcome Screen](images/welcome.jpeg)
+
+---
+
+## Main Chat Interface
+
+Users interact with the assistant using natural language.
+
+![Main Chat Interface](images/Main%20chat%20interface.jpeg)
+
+---
+
+## Expense Tracking
+
+Users can record expenses through simple chat messages.
+
+![Expense Tracking](images/Expense%20tracking.jpeg)
+
+---
+
+## Income Tracking
+
+Users can record income transactions naturally.
+
+![Income Tracking](images/Income%20tracking.jpeg)
+
+---
+
+## Add Task
+
+Users can create finance-aware tasks with reminders.
+
+![Add Task](images/add%20task.jpeg)
+
+---
+
+## Task Completion
+
+When a finance-related task is completed, the expense is automatically recorded.
+
+![Task Completion](images/User%20marks%20a%20task%20done.jpeg)
+
+---
+
+## Analytics
+
+The assistant provides financial insights and analytics.
+
+![Analytics](images/analytics.jpeg)
+
+---
+
+## n8n Workflow
+
+Automation workflow integrating Telegram, OpenAI, and Supabase.
+
+![n8n Workflow](images/n8n%20workflow%20.jpeg)
 
 
 
