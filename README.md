@@ -47,6 +47,10 @@ I implemented a smart task management system integrated with the financial assis
 Team Project
 
 ## Screenshots
+### 💰 Expense Tracking
+
+The user records an expense using natural language.
+User adds an expense.jpeg
 
 
 
