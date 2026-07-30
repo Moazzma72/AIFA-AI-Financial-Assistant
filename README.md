@@ -106,7 +106,7 @@ The assistant provides financial insights and analytics.
 
 ## n8n Workflow
 
-Automation workflow integrating Telegram, OpenAI, and Supabase.
+This n8n workflow automates task creation, reminders, and financial transaction logging by integrating Telegram, OpenAI, and Supabase.
 
 ![n8n Workflow](images/n8n%20workflow%20.jpeg)
 
