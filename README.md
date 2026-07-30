@@ -50,7 +50,7 @@ Team Project
 
 ## Welcome Screen
 
-The welcome interface of the AI Financial Assistant in Telegram.
+The welcome interface of the AIFA in app
 
 ![Welcome Screen](images/welcome.jpeg)
 
