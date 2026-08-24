@@ -4,6 +4,10 @@ AIFA is an AI-powered financial assistant that helps users manage their personal
 
 Users can record income, expenses, debts, and financial goals simply by chatting with the bot. The system uses AI to understand user requests, stores financial data securely, and automates financial workflows.
 
+#Architecture
+
+[Architecture of system](system-architecture.png)
+
 ## Features
 
 * AI-powered natural language understanding
