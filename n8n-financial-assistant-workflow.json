@@ -1,0 +1,3673 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/botYOUR_TELEGRAM_BOT_TOKEN/getFile?file_id={{$node[\"Telegram Trigger1\"].json[\"message\"][\"voice\"][\"file_id\"]}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        60,
+        60
+      ],
+      "id": "88effdab-e2fb-436b-970e-8bc7fba04199",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.telegram.org/file/botYOUR_TELEGRAM_BOT_TOKEN/{{$node[\"HTTP Request1\"].json[\"result\"][\"file_path\"]}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        280,
+        60
+      ],
+      "id": "2faa01af-7f48-4170-b763-1157d1bb55ca",
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        500,
+        60
+      ],
+      "id": "c5caaa3a-f6a7-4aca-b89a-4c6ae54e4f84",
+      "name": "OpenAI1"
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1400,
+        260
+      ],
+      "id": "0c57c44b-3037-4886-8737-fd793558a153",
+      "name": "Telegram Trigger1"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "chatgpt-4o-latest",
+          "mode": "list",
+          "cachedResultName": "CHATGPT-4O-LATEST"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "Today's date: {{ new Date().toISOString().slice(0, 10) }}\n\nYou are a smart financial assistant. The user sends messages containing information about expenses, income, debts, goals, salaries, tasks, or requests to view this data.\n\n🎯 Your task:\n1. Determine exactly what the user wants — to add data or view data.\n2. Return STRICTLY ONE VALID JSON object OR an ARRAY of objects.\n3. No comments, Markdown, or surrounding text — only JSON/JSON array.\n4. If no date is specified, use today's date: {{ new Date().toISOString().slice(0, 10) }}\n5. Date format: strictly yyyy-mm-dd.\n6. If a name is given in a grammatical case, return it in the nominative form: \"Kim's\" → \"Kim\", \"Nursu's\" → \"Nurs\".\n7. Normalize all names, including salary sources.\n8. If the message contains a task, extract it (see the format below).\n\n📌 Special rules for DEBTS:\n- \"I owe Kim 5000\", \"I borrowed 5000 from Kim\" → type: \"debt\", direction: \"i_owe\"\n- \"Kim owes me\", \"I gave Kim money\", \"Kim borrowed from me\" → type: \"debt\", direction: \"owed_to_me\"\n- \"I paid Kim back\", \"I returned the money to Aidar\" → type: \"debt_repayment\", direction: \"i_owe\"\n- \"Kim paid me back\", \"Aidar repaid the debt\" → type: \"debt_repayment\", direction: \"owed_to_me\"\n- \"paid everything\", \"repaid the entire debt\" → amount: \"all\"\n\nAlways include the direction field for debts and debt repayments.\n\n📌 Salary — determining the action:\n- \"I got a raise\", \"my salary changed\", \"I now earn...\" → action: \"update\"\n- \"I quit\", \"I left Kaspi\", \"I was fired\" → action: \"delete\"\n- \"I started at a new company\", \"I work at Google\", \"I have freelance work\" → action: \"create\"\n- \"I will not receive my salary this month\" → action: \"skip_month\"\n- \"I received 450000 including bonuses\" → action: \"salary_record\"\n\nIf the message mentions two or more income or work sources (for example: \"I work at Kaspi and Google\"), ALWAYS return an array of JSON objects. Each object must correspond to one source. Even if both have the same date/salary — still return two objects. Never ignore the second one.\n\n📌 Complex cases — handle them precisely:\n- \"I started working at Hyundai and Kia. At the first I earn 500k, at the second 400k. Salary is paid on the 3rd\" → return an array of 2 objects with day_of_month = 3.\n- \"Now I earn 300000 at Huawei\" → if Huawei already exists, action: \"update\", otherwise \"create\".\n- \"I forgot to say, my Huawei salary is on the 5th\" → if Huawei already exists, \"update\" only the day.\n- \"Who owes me money?\" → return direction: \"owed_to_me\".\n\n📌 Adding tasks to the To-Do list:\nIf the user mentions a task that needs to be added to the To-Do list, extract and return the data in the following format. Sometimes the user will ask to add tasks to the To-Do list. Depending on what they want to do with the task, return 'type' = 'add_task', 'done', or 'show_tasks'.\n\n{\n  \"type\": \"add_task\" / \"done\" / \"show_tasks\",\n  \"task_name\": \"Task name\",\n  \"amount\": 0000,                 // optional, number only\n  \"due_date\": \"YYYY-MM-DD\",       // optional\n  \"frequency\": \"monthly\",         // optional: daily, weekly, monthly, etc.\n  \"is_financial\": true            // true — if an amount is specified, otherwise false\n}\n\n📋 JSON formats:\n\nExpense / income:\n{\n  \"type\": \"expense\" / \"income\",\n  \"amount\": 1500,\n  \"category\": \"food / transport / salary\",\n  \"comment\": \"\",\n  \"date\": \"yyyy-mm-dd\"\n}\n\nDebt:\n{\n  \"type\": \"debt\",\n  \"amount\": 10000,\n  \"to_whom\": \"Kim\",\n  \"direction\": \"i_owe\" / \"owed_to_me\",\n  \"date\": \"yyyy-mm-dd\"\n}\n\nDebt repayment:\n{\n  \"type\": \"debt_repayment\",\n  \"amount\": 3000,\n  \"to_whom\": \"Aidar\",\n  \"direction\": \"i_owe\" / \"owed_to_me\"\n}\n\nGoal:\n{\n  \"type\": \"goal\",\n  \"amount\": 5000000,\n  \"title\": \"car\",\n  \"deadline\": \"2026-07-01\",\n  \"progress\": 0\n}\n\nViewing data:\n{\n  \"type\": \"view_expenses\" / \"view_income\" / \"view_debts\" / \"view_goals\",\n}\n\nSalary configuration:\n{\n  \"type\": \"salary_config\",\n  \"action\": \"create\" / \"update\" / \"delete\" / \"skip_month\",\n  \"amount\": 250000,\n  \"day_of_month\": 10,\n  \"source\": \"TechCorp\",\n  \"comment\": \"\"\n}\n\nSalary record:\n{\n  \"type\": \"salary_config\",\n  \"action\": \"salary_record\",\n  \"amount\": 370000,\n  \"source\": \"Microsoft\",\n  \"date\": \"2025-06-01\",\n  \"comment\": \"overtime\"\n}\n\n‼️ If the message mentions two or more salary sources, debts, or transactions — ALWAYS return a JSON array. Do not combine objects.\n\nExample array output:\n[\n  {\n    \"type\": \"salary_config\",\n    \"action\": \"create\",\n    \"amount\": 500000,\n    \"day_of_month\": 3,\n    \"source\": \"Hyundai\",\n    \"comment\": \"\"\n  },\n  {\n    \"type\": \"salary_config\",\n    \"action\": \"create\",\n    \"amount\": 400000,\n    \"day_of_month\": 3,\n    \"source\": \"Kia\",\n    \"comment\": \"\"\n  }\n]\n\n⚠️ The output must be either one valid object or an array of objects. No wrappers, text, Markdown, or templates. JSON only.\n",
+              "role": "system"
+            },
+            {
+              "content": "={{ $json.chatInput }}\nToday's date: {{ new Date().toISOString().slice(0, 10) }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1560,
+        380
+      ],
+      "id": "fb250c08-68cb-4ff3-952a-804d2079c311",
+      "name": "OpenAI2"
+    },
+    {
+      "parameters": {
+        "tableId": "users",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "chat_id",
+              "fieldValue": "={{ $('Telegram Trigger1').item.json.message.chat.id }}"
+            },
+            {
+              "fieldId": "username",
+              "fieldValue": "={{ $('Telegram Trigger1').item.json.message.chat.username }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -660,
+        380
+      ],
+      "id": "cc186889-6103-4483-bc73-cb15db89de9b",
+      "name": "SupabaseCreateUser"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "users",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_id",
+              "keyValue": "={{ $json.message.chat.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1180,
+        260
+      ],
+      "id": "e79f3d92-9209-4494-b0bd-f43c8f6fb874",
+      "name": "SupabaseGetUser",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0187409e-a4bf-4e2e-9d54-9bf9c32a05ad",
+              "name": "date",
+              "value": "={{ new Date().toISOString().slice(0, 10) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2120,
+        360
+      ],
+      "id": "4b77bb94-b561-4d87-9041-e47c78095ab2",
+      "name": "DateSet"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "69bcd150-3889-4a25-af84-96b2ffa6d189",
+              "leftValue": "=",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -960,
+        260
+      ],
+      "id": "ad45a3f4-c68f-4db4-83e1-abccc5b98988",
+      "name": "IfUserExists",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "0b96caa9-a3b0-4959-a06e-a41a2987ce71",
+              "leftValue": "={{ $('Telegram Trigger1').item.json.message.voice }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -380,
+        240
+      ],
+      "id": "7593af6d-16a3-4167-961d-79e7c974f3b7",
+      "name": "IfVoice"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ae38b418-63d7-4a48-ba03-693784a25826",
+              "name": "chatInput",
+              "value": "={{ $('Telegram Trigger1').item.json.message.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        400,
+        360
+      ],
+      "id": "e791cff0-f52e-4baf-a461-3073f6783c50",
+      "name": "SetTextMessage"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f71cc8f7-1a5b-4f24-8f34-b8ceb23d44b8",
+              "name": "chatInput",
+              "value": "={{$json[\"text\"]}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        720,
+        60
+      ],
+      "id": "1d0154c5-ee5e-487d-b1c0-b834c0b0c10a",
+      "name": "SetConvertVoiceToText"
+    },
+    {
+      "parameters": {
+        "tableId": "transactions",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "type",
+              "fieldValue": "={{ $('OpenAI2').item.json.message.content.type }}"
+            },
+            {
+              "fieldId": "amount",
+              "fieldValue": "={{ $('OpenAI2').item.json.message.content.amount }}"
+            },
+            {
+              "fieldId": "category",
+              "fieldValue": "={{ $('OpenAI2').item.json.message.content.category }}"
+            },
+            {
+              "fieldId": "comment",
+              "fieldValue": "={{ $('OpenAI2').item.json.message.content.comment }}"
+            },
+            {
+              "fieldId": "date",
+              "fieldValue": "={{ $('DateSet').item.json.date }}"
+            },
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $('Telegram Trigger1').item.json.message.chat.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2920,
+        120
+      ],
+      "id": "fef185d5-701d-4333-ac99-39425fdc531b",
+      "name": "SupaTransactions"
+    },
+    {
+      "parameters": {
+        "tableId": "goals",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "title",
+              "fieldValue": "={{ $('OpenAI2').item.json.message.content.title }}"
+            },
+            {
+              "fieldId": "amount",
+              "fieldValue": "={{ $('OpenAI2').item.json.message.content.amount }}"
+            },
+            {
+              "fieldId": "deadline",
+              "fieldValue": "={{ $('OpenAI2').item.json.message.content.deadline }}"
+            },
+            {
+              "fieldId": "progress",
+              "fieldValue": "={{ $('OpenAI2').item.json.message.content.progress }}"
+            },
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $('Telegram Trigger1').item.json.message.chat.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2920,
+        440
+      ],
+      "id": "bae24d6e-9aca-40fb-9386-5c0b66eecc6f",
+      "name": "SupaGoals"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('OpenAI2').item.json.message.content.type }}",
+                    "rightValue": "income",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "3b4bca12-bf54-42e6-b977-87c89571e097"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "234c9234-5f6a-4fab-a7b0-db589b5f140a",
+                    "leftValue": "={{ $('OpenAI2').item.json.message.content.type }}",
+                    "rightValue": "expense",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "66502544-b265-4040-8463-c0954de70d4c",
+                    "leftValue": "={{ $('OpenAI2').item.json.message.content.type }}",
+                    "rightValue": "debt",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "5972776a-1f17-404b-8b77-0a8da4b23cc0",
+                    "leftValue": "={{ $('OpenAI2').item.json.message.content.type }}",
+                    "rightValue": "goal",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "0c5190b4-5d9c-4713-a9fa-0770ba92ba14",
+                    "leftValue": "={{ $('OpenAI2').item.json.message.content.type }}",
+                    "rightValue": "view_expenses",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "e90bedf8-aaa6-43a5-8178-45c00c3aa995",
+                    "leftValue": "={{ $('OpenAI2').item.json.message.content.type }}",
+                    "rightValue": "view_income",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "e48179fe-39ec-43c7-b9fc-b52b7fca1f90",
+                    "leftValue": "={{ $('OpenAI2').item.json.message.content.type }}",
+                    "rightValue": "view_debts",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "d51ff36f-4bcb-4e2b-a695-95e6e8654102",
+                    "leftValue": "={{ $('OpenAI2').item.json.message.content.type }}",
+                    "rightValue": "view_goals",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "abb114e3-a069-42b1-ac88-e26a7ac12c84",
+                    "leftValue": "={{ $('OpenAI2').item.json.message.content.type }}",
+                    "rightValue": "debt_repayment",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "34cff716-806b-4574-9a5f-f7e787333308",
+                    "leftValue": "={{ $('OpenAI2').item.json.message.content.type }}",
+                    "rightValue": "salary_config",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2460,
+        220
+      ],
+      "id": "60ebbd03-aa9f-409c-98f7-4b7774d17b14",
+      "name": "FinanceActionType"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "transactions",
+        "returnAll": true,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Telegram Trigger1').item.json.message.chat.id }}"
+            },
+            {
+              "keyName": "type",
+              "condition": "eq",
+              "keyValue": "expense"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2920,
+        640
+      ],
+      "id": "aa35c11f-2992-421f-9ea1-47a59efffabd",
+      "name": "SupaCheckOuts",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "transactions",
+        "returnAll": true,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Telegram Trigger1').item.json.message.chat.id }}"
+            },
+            {
+              "keyName": "type",
+              "condition": "eq",
+              "keyValue": "income"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2920,
+        820
+      ],
+      "id": "de236bd5-0fae-4e53-be51-94b33c26efa0",
+      "name": "SupaCheckIns",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "goals",
+        "returnAll": true,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Telegram Trigger1').item.json.message.chat.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2920,
+        1200
+      ],
+      "id": "64f9b7aa-4cc5-44e4-8f33-41dadf2f9060",
+      "name": "SupaCheckGoals"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "8ebdad04-3515-49c0-93f3-d24a7da0da4f",
+              "leftValue": "={{ $json.comment }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3140,
+        640
+      ],
+      "id": "8c2e1415-1e37-40fa-b5af-491dc11a888c",
+      "name": "IfCommentNotEmptyCheckOuts"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger1').item.json.message.from.id }}",
+        "text": "=You spent {{ $json.amount }} on {{ $json.category }}. Date: {{ $json.date }}. Comment: {{ $json.comment }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3420,
+        520
+      ],
+      "id": "77562eab-7817-4e93-9810-d94f2af2f506",
+      "name": "SendCommentNotEmptyCheckOuts"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger1').item.json.message.from.id }}",
+        "text": "=You spent {{ $json.amount }} on {{ $json.category }}. Date: {{ $json.date }}. ",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3420,
+        700
+      ],
+      "id": "b6246481-21c7-4a0a-9650-7102d7039354",
+      "name": "SendCommentEmptyCheckOuts"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger1').item.json.message.from.id }}",
+        "text": "=You earned {{ $json.amount }}. Source: {{ $json.category }}. Date: {{ $json.date }}.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3700,
+        960
+      ],
+      "id": "2ee95114-41fb-4116-83de-6770dc0d3d75",
+      "name": "SendCommentEmptyCheckIns"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger1').item.json.message.from.id }}",
+        "text": "=You earned {{ $json.amount }}. Source: {{ $json.category }}. Date: {{ $json.date }}. Comment: {{ $json.comment }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3700,
+        800
+      ],
+      "id": "d82f8ef8-c64f-4d3c-9648-21cda9da33ba",
+      "name": "SendCommentNotEmptyCheckIns"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "8ebdad04-3515-49c0-93f3-d24a7da0da4f",
+              "leftValue": "={{ $json.comment }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3420,
+        900
+      ],
+      "id": "8df15fab-28b5-4df6-8a0e-527477279304",
+      "name": "IfCommentNotEmptyCheckIns"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger1').item.json.message.chat.id }}",
+        "text": "={{ $json.title }} {{ $json.amount }} by {{ $json.deadline }}. Currently earned {{ $json.progress }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3140,
+        1200
+      ],
+      "id": "4c261201-78a7-4fc3-bf24-e5e80b1a3a5a",
+      "name": "SendCheckGoals"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "debts",
+        "returnAll": true,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Telegram Trigger1').item.json.message.chat.id }}"
+            },
+            {
+              "keyName": "to_whom",
+              "condition": "eq",
+              "keyValue": "={{ $('OpenAI2').item.json.message.content.to_whom }}"
+            },
+            {
+              "keyName": "direction",
+              "condition": "eq",
+              "keyValue": "={{ $('OpenAI2').item.json.message.content.direction }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2920,
+        1400
+      ],
+      "id": "654c7efe-adfa-4755-9482-3fc2bf7e5d32",
+      "name": "SupaCheckDebtsForUpdate",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "81483598-0822-47a1-847c-03bfb7cde1ad",
+              "leftValue": "={{$json[\"new_returned\"]}}",
+              "rightValue": "={{$json[\"debt_amount\"]}}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3780,
+        1720
+      ],
+      "id": "f1a0ef89-2473-4d6d-ad5c-e867ca9cfcc8",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger1').item.json.message.from.id }}",
+        "text": "=Congratulations! You paid off your debt to {{ $('SupaCheckDebtsForUpdate').item.json.to_whom }}! You owed them {{ $('SupaCheckDebtsForUpdate').item.json.amount }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        4080,
+        1600
+      ],
+      "id": "138266d5-2bb4-4bfe-97fb-e1c00d2d19e8",
+      "name": "SendUserReturnedTheDebt"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "tableId": "debts",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('SupaCheckDebtsForUpdate').item.json.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        4300,
+        1600
+      ],
+      "id": "b3857af5-45fe-4edf-b9bb-64f7d20738e3",
+      "name": "SupaDeleteDebt"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "4c0e2559-f47f-4e1c-b4f4-afcfcfe2945d",
+              "leftValue": "={{ $('OpenAI2').item.json.message.content.amount }}",
+              "rightValue": "all",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3160,
+        1400
+      ],
+      "id": "c8879026-e5e6-4915-904c-ff498cc42f00",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"new_returned\": \"{{$json.returned + $('OpenAI2').item.json.message.content.amount}}\",\n  \"debt_amount\": \"{{$json.amount}}\",\n  \"debt_id\": \"{{$json.id}}\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3520,
+        1720
+      ],
+      "id": "28a8714f-9f4c-4ca2-8830-b78cb52a9a2a",
+      "name": "SetNewDebt"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "bf8b4cf7-18c7-4765-8666-d216b10470a3",
+              "leftValue": "={{ $json.direction }}",
+              "rightValue": "owed_to_me",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3520,
+        1500
+      ],
+      "id": "df1cec71-e408-44f5-bd64-aae06c2dd6ec",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "tableId": "debts",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('SupaCheckDebtsForUpdate').item.json.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        4300,
+        1420
+      ],
+      "id": "0675245b-9031-45ed-9468-6d369e36186a",
+      "name": "SupaDeleteDebt1"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger1').item.json.message.from.id }}",
+        "text": "=Congratulations! Your debt was paid off by {{ $('SupaCheckDebtsForUpdate').item.json.to_whom }}! This person owed you {{ $('SupaCheckDebtsForUpdate').item.json.amount }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        4080,
+        1420
+      ],
+      "id": "12a7ec5f-4bea-4b02-82e0-1849fe79b377",
+      "name": "SendReturnedTheDebtToUser"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a23e64e8-26a3-4c7a-bba3-87132bea7945",
+              "leftValue": "={{ $('OpenAI2').item.json.message.content.direction }}",
+              "rightValue": "owed_to_me",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2920,
+        1000
+      ],
+      "id": "346ef595-868b-44e9-ac6b-769269241fc1",
+      "name": "IfCheckDebtDirection"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "debts",
+        "returnAll": true,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Telegram Trigger1').item.json.message.chat.id }}"
+            },
+            {
+              "keyName": "direction",
+              "condition": "eq",
+              "keyValue": "owed_to_me"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        4300,
+        1020
+      ],
+      "id": "6e8426a8-66fc-42f6-9a2f-d6e0a833491a",
+      "name": "SupaCheckDebtsOweMe"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "debts",
+        "returnAll": true,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Telegram Trigger1').item.json.message.chat.id }}"
+            },
+            {
+              "keyName": "direction",
+              "condition": "eq",
+              "keyValue": "i_owe"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        4520,
+        1300
+      ],
+      "id": "283e4877-a299-41f2-9868-9f4a1f1332d9",
+      "name": "SupaCheckDebtsIOwe"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger1').item.json.message.from.id }}",
+        "text": "=You owe {{ $json.amount }} to {{ $json.to_whom }}. Repaid so far: {{ $json.returned }}. Remaining amount: {{ $json.amount - $json.returned }}. Date: {{ $json.date }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        4940,
+        1180
+      ],
+      "id": "572f232c-f0b3-46fb-9443-01490d92c8f7",
+      "name": "SendCheckDebtsIOwe"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger1').item.json.message.from.id }}",
+        "text": "={{ $json.to_whom }} owes you {{ $json.amount }}. Repaid so far: {{ $json.returned }}. Remaining amount: {{ $json.amount - $json.returned }}. Date: {{ $json.date }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        4560,
+        860
+      ],
+      "id": "a836b4d9-503f-441b-9c6f-782bbea501a2",
+      "name": "SendCheckDebtsOweMe"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "dbfbcd24-5c56-4bf2-8901-9c523ae23cf4",
+              "leftValue": "={{ $('OpenAI2').item.json.message.content.to_whom }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3940,
+        1040
+      ],
+      "id": "b1cbc9d3-4555-4bd1-9db6-0e6bf6ff7753",
+      "name": "IfCheckDebtWhomExists"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "debts",
+        "returnAll": true,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Telegram Trigger1').item.json.message.chat.id }}"
+            },
+            {
+              "keyName": "direction",
+              "condition": "eq",
+              "keyValue": "owed_to_me"
+            },
+            {
+              "keyName": "to_whom",
+              "condition": "eq",
+              "keyValue": "={{ $('OpenAI2').item.json.message.content.to_whom }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        4300,
+        800
+      ],
+      "id": "2a30f59e-222d-463d-b415-73a696449065",
+      "name": "SupaCheckDebtsOweMe1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "dbfbcd24-5c56-4bf2-8901-9c523ae23cf4",
+              "leftValue": "={{ $('OpenAI2').item.json.message.content.to_whom }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3940,
+        1240
+      ],
+      "id": "173858ec-2ba0-400b-a345-51cf259af4bd",
+      "name": "IfCheckDebtWhomExists1"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "debts",
+        "returnAll": true,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Telegram Trigger1').item.json.message.chat.id }}"
+            },
+            {
+              "keyName": "direction",
+              "condition": "eq",
+              "keyValue": "i_owe"
+            },
+            {
+              "keyName": "to_whom",
+              "condition": "eq",
+              "keyValue": "={{ $('OpenAI2').item.json.message.content.to_whom }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        4520,
+        1120
+      ],
+      "id": "9d4a1282-2752-4ea9-8e62-33d3982a3499",
+      "name": "SupaCheckDebtsIOwe1"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "debts",
+        "returnAll": true,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Telegram Trigger1').item.json.message.chat.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2920,
+        280
+      ],
+      "id": "1e45516d-a9e1-46c5-aedf-8239a996c5e0",
+      "name": "SupaCheckAllDebts",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "03b5d960-619b-4ad5-ae98-64e91b1e88e8",
+              "leftValue": "={{ $json.match }}",
+              "rightValue": "={{ $json.to_whom }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3540,
+        280
+      ],
+      "id": "10b00455-163f-4c34-9794-fdd7d3efa10f",
+      "name": "If3",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const parsed = $('OpenAI2').item.json.message.content;\nconst newAmount = parsed.amount;\nconst newToWhom = parsed.to_whom?.toLowerCase().trim();\nconst newDirection = parsed.direction;\nconst chatId = $('Telegram Trigger1').item.json.message.chat.id;\n\nconst match = items.find(item => {\n  const debt = item.json;\n  return debt.to_whom?.toLowerCase().trim() === newToWhom &&\n         debt.direction === newDirection;\n});\n\nif (match) {\n  const existingAmount = match.json.amount;\n  const existingId = match.json.id;\n\n  return [{\n    json: {\n      match: true,\n      existing_debt_id: existingId,\n      existing_amount: existingAmount,\n      new_amount: existingAmount + newAmount\n    }\n  }];\n} else {\n  return [{\n    json: {\n      match: false,\n      to_whom: parsed.to_whom,\n      amount: parsed.amount,\n      direction: parsed.direction,\n      date: parsed.date,\n      chat_id: chatId\n    }\n  }];\n}\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3240,
+        280
+      ],
+      "id": "ed8d498a-0c8c-4b09-b293-d5f2c810cf25",
+      "name": "CheckExistingDebt"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "debts",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.existing_debt_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "amount",
+              "fieldValue": "={{ $json.new_amount }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        4020,
+        220
+      ],
+      "id": "c861000d-d313-4068-a4dc-957f39d9b35a",
+      "name": "SupaUpdateDebt"
+    },
+    {
+      "parameters": {
+        "tableId": "debts",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "to_whom",
+              "fieldValue": "={{ $json.to_whom }}"
+            },
+            {
+              "fieldId": "amount",
+              "fieldValue": "={{ $json.amount }}"
+            },
+            {
+              "fieldId": "date",
+              "fieldValue": "={{ $json.date }}"
+            },
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $json.chat_id }}"
+            },
+            {
+              "fieldId": "direction",
+              "fieldValue": "={{ $json.direction }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        4020,
+        420
+      ],
+      "id": "7c587cc4-d79f-4c9c-a425-17c55170d49a",
+      "name": "SupaCreateDebt"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1480,
+        740
+      ],
+      "id": "e819e22b-0f53-4a40-8441-f446f8c1d4d7",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "salary_config",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "active",
+              "condition": "eq",
+              "keyValue": "TRUE"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1160,
+        740
+      ],
+      "id": "86407ab1-d78a-45b0-a43b-e1b1d378065a",
+      "name": "Supabase1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const today = new Date();\nconst currentDay = today.getDate();\nconst currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;\n\nreturn items\n  .filter(item => Number(item.json.day_of_month) === currentDay)\n  .map(item => {\n    return {\n      json: {\n        ...item.json,\n        current_month: currentMonth\n      }\n    };\n  });\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -860,
+        740
+      ],
+      "id": "e1236bcb-aeec-4e8e-8c8b-742649aad92d",
+      "name": "Code",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "tableId": "transactions",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $('Code').item.json.user_id }}"
+            },
+            {
+              "fieldId": "amount",
+              "fieldValue": "={{ $('Code').item.json.amount }}"
+            },
+            {
+              "fieldId": "type",
+              "fieldValue": "income"
+            },
+            {
+              "fieldId": "category",
+              "fieldValue": "={{ $('Code').item.json.category }}"
+            },
+            {
+              "fieldId": "comment",
+              "fieldValue": "={{ $('Code').item.json.comment }}"
+            },
+            {
+              "fieldId": "date",
+              "fieldValue": "={{ new Date().toISOString().slice(0, 10) }}"
+            },
+            {
+              "fieldId": "comment",
+              "fieldValue": "={{ $('Code').item.json.source }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -100,
+        740
+      ],
+      "id": "21dcc0ef-9d5e-4774-9cb2-fff0e98a1acd",
+      "name": "SendSalary"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('OpenAI2').item.json.message.content.action }}",
+                    "rightValue": "create",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "a48d8ace-086a-41e0-85e4-a5482b40c06f"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "d14b3873-dcbb-4c41-81fa-7daa402e77c2",
+                    "leftValue": "={{ $('OpenAI2').item.json.message.content.action }}",
+                    "rightValue": "update",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "708b9995-96cf-4b7e-ae5f-fcb689fc7e2a",
+                    "leftValue": "={{ $('OpenAI2').item.json.message.content.action }}",
+                    "rightValue": "delete",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "02581b26-f157-475c-9aff-40a93a0ad9ce",
+                    "leftValue": "={{ $('OpenAI2').item.json.message.content.action }}",
+                    "rightValue": "skip_month",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "ed688e6b-260d-4234-8326-e48e68df548c",
+                    "leftValue": "={{ $('OpenAI2').item.json.message.content.action }}",
+                    "rightValue": "salary_record",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2960,
+        2340
+      ],
+      "id": "9950a829-bb44-46b8-aad5-38e7b0037e38",
+      "name": "SwitchSalary"
+    },
+    {
+      "parameters": {
+        "tableId": "salary_config",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $('Telegram Trigger1').item.json.message.chat.id }}"
+            },
+            {
+              "fieldId": "amount",
+              "fieldValue": "={{ $('OpenAI2').item.json.message.content.amount }}"
+            },
+            {
+              "fieldId": "day_of_month",
+              "fieldValue": "={{ $('OpenAI2').item.json.message.content.day_of_month }}"
+            },
+            {
+              "fieldId": "category",
+              "fieldValue": "salary"
+            },
+            {
+              "fieldId": "active",
+              "fieldValue": "True"
+            },
+            {
+              "fieldId": "source",
+              "fieldValue": "={{ $('OpenAI2').item.json.message.content.source }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        4480,
+        2040
+      ],
+      "id": "cf40f2d9-24bf-4be1-a71a-554bfa8884e3",
+      "name": "SupaCreateSalary"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "salary_config",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('If6').item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "amount",
+              "fieldValue": "={{ $json.amount }}"
+            },
+            {
+              "fieldId": "day_of_month",
+              "fieldValue": "={{ $json.day_of_month }}"
+            },
+            {
+              "fieldId": "source",
+              "fieldValue": "={{ $json.source }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        4520,
+        2280
+      ],
+      "id": "285d2e95-b155-4012-a714-ecfb3e2fa716",
+      "name": "SupaUpdateSalary"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "salary_config",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Telegram Trigger1').item.json.message.chat.id }}"
+            },
+            {
+              "keyName": "source",
+              "condition": "eq",
+              "keyValue": "={{ $('OpenAI2').item.json.message.content.source }}"
+            },
+            {
+              "keyName": "active",
+              "condition": "eq",
+              "keyValue": "true"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3340,
+        2280
+      ],
+      "id": "1be0d819-dcbe-4a7f-8b16-622351d3dadd",
+      "name": "SupaGetSalaryToUpdate"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "salary_config",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Telegram Trigger1').item.json.message.chat.id }}"
+            },
+            {
+              "keyName": "source",
+              "condition": "eq",
+              "keyValue": "={{ $('OpenAI2').item.json.message.content.source }}"
+            },
+            {
+              "keyName": "active",
+              "condition": "eq",
+              "keyValue": "true"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3340,
+        2460
+      ],
+      "id": "f32b1749-fbde-48e4-b114-76ba6d377bcb",
+      "name": "SupaGetSalaryToDelete"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "tableId": "salary_config",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3860,
+        2460
+      ],
+      "id": "ac172306-79de-4498-a3e1-faa58fbce4cb",
+      "name": "SupaDeleteSalary"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "340ec6df-302c-4c10-ac70-37a7c46e3d55",
+              "leftValue": "={{$json.id}}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3560,
+        2460
+      ],
+      "id": "6a9d7b45-1151-4b5c-b3a3-ccca7a409669",
+      "name": "If4"
+    },
+    {
+      "parameters": {
+        "tableId": "salary_skip",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $('Telegram Trigger1').item.json.message.chat.id }}"
+            },
+            {
+              "fieldId": "source",
+              "fieldValue": "={{ $('OpenAI2').item.json.message.content.source }}"
+            },
+            {
+              "fieldId": "month",
+              "fieldValue": "={{ new Date().toISOString().slice(0, 7) }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3340,
+        2660
+      ],
+      "id": "a12b898a-64dc-482f-a9bb-fc076ebb6fe7",
+      "name": "SupaSkipSalaryCreate"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "salary_skip",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.user_id }}"
+            },
+            {
+              "keyName": "source",
+              "condition": "eq",
+              "keyValue": "={{ $json.source }}"
+            },
+            {
+              "keyName": "month",
+              "condition": "eq",
+              "keyValue": "={{ $json.current_month }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        740
+      ],
+      "id": "d24d8e11-3843-49ed-9656-8c5b79baaefa",
+      "name": "SupaGetSkipSalary",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "49f6a482-70af-4eb4-bb44-69f8c0d736ae",
+              "leftValue": "=",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -420,
+        740
+      ],
+      "id": "30e46834-ebc7-40fc-aab1-207d06b6fded",
+      "name": "If5"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "salary_config",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Telegram Trigger1').item.json.message.chat.id }}"
+            },
+            {
+              "keyName": "active",
+              "condition": "eq",
+              "keyValue": "true"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3560,
+        2280
+      ],
+      "id": "e073c409-9bc7-491a-a958-3d248797e89d",
+      "name": "SupaGetLastSalary",
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c693c85e-6d3d-4676-adec-ed3be6534a40",
+              "leftValue": "={{ $json.amount }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3940,
+        2280
+      ],
+      "id": "931812b5-0719-4988-bc2f-4d9c65bcec10",
+      "name": "If6"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "salary_config",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Telegram Trigger1').item.json.message.chat.id }}"
+            },
+            {
+              "keyName": "active",
+              "condition": "eq",
+              "keyValue": "true"
+            },
+            {
+              "keyName": "source",
+              "condition": "eq",
+              "keyValue": "={{ $('OpenAI2').item.json.message.content.source }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3340,
+        2040
+      ],
+      "id": "a1c4ed4d-e0fa-4343-93ad-fefa8319ed97",
+      "name": "SupaGetIfSalaryExists",
+      "executeOnce": false,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "70bcfc3e-504b-4e5a-aad4-c5a144c4cd69",
+              "leftValue": "={{$json.length === 0}}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3620,
+        2040
+      ],
+      "id": "988022d2-d047-4f39-871f-25d8c0be944e",
+      "name": "If7"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger1').item.json.message.from.id }}",
+        "text": "=Please specify the salary amount.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        4300,
+        2460
+      ],
+      "id": "e917f67e-f951-46a7-84d3-25284847d9cb",
+      "name": "SendSalaryAmountIsNotDefined"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $(\"OpenAI2\").item.json.message.content;\nconst previous = $json;\n\nconst resolvedDay = input.day_of_month ?? previous.day_of_month;\nconst output = {\n  user_id: $(\"Telegram Trigger1\").item.json.message.chat.id,\n  source: input.source || previous.source,\n  amount: input.amount ?? previous.amount,\n  comment: input.comment ?? previous.comment ?? null,\n  active: true,\n  updated_at: new Date().toISOString()\n};\n\nif (resolvedDay !== undefined && resolvedDay !== null) {\n  output.day_of_month = Number(resolvedDay);\n}\n\nreturn [{ json: output }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4180,
+        2280
+      ],
+      "id": "c0cbbf4b-912d-409f-91a4-9d13eb5bfed3",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "debts",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('SupaCheckDebtsForUpdate').item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "returned",
+              "fieldValue": "={{ $json.new_returned }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        4000,
+        1820
+      ],
+      "id": "6011db03-9b01-4709-a70d-eaa346ea4e9c",
+      "name": "UpdateDebt"
+    },
+    {
+      "parameters": {
+        "tableId": "salary_records",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $('Telegram Trigger1').item.json.message.chat.id }}"
+            },
+            {
+              "fieldId": "source",
+              "fieldValue": "={{ $('OpenAI2').item.json.message.content.source }}"
+            },
+            {
+              "fieldId": "amount",
+              "fieldValue": "={{ $('OpenAI2').item.json.message.content.amount }}"
+            },
+            {
+              "fieldId": "date",
+              "fieldValue": "={{ $('OpenAI2').item.json.message.content.date }}"
+            },
+            {
+              "fieldId": "comment",
+              "fieldValue": "={{ $('OpenAI2').item.json.message.content.comment }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3340,
+        2860
+      ],
+      "id": "5d21c539-c830-4692-a2e4-8e9fc96f0c8a",
+      "name": "SupaNoFixSalaryCreate"
+    },
+    {
+      "parameters": {
+        "tableId": "salary_skip",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $('Telegram Trigger1').item.json.message.chat.id }}"
+            },
+            {
+              "fieldId": "source",
+              "fieldValue": "={{ $('OpenAI2').item.json.message.content.source }}"
+            },
+            {
+              "fieldId": "month",
+              "fieldValue": "={{ new Date().toISOString().slice(0, 7) }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3640,
+        2860
+      ],
+      "id": "8fe2408a-2589-48e6-8d44-d42b91b86e94",
+      "name": "SupaSkipSalaryCreate1"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "months"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1460,
+        1200
+      ],
+      "id": "83e035cb-e317-4210-b400-7f24f9593f55",
+      "name": "Schedule Trigger1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nnow.setMonth(now.getMonth() - 1);\n\nconst lastMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;\n\nreturn [{\n  json: {\n    last_month: lastMonth\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1140,
+        1200
+      ],
+      "id": "35a44e31-d321-4303-9db1-d6a9ccb767d5",
+      "name": "Code2",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "49f6a482-70af-4eb4-bb44-69f8c0d736ae",
+              "leftValue": "=",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -620,
+        1200
+      ],
+      "id": "e1d007d6-2846-4bc1-86ad-3067651c3028",
+      "name": "If8"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "tableId": "salary_skip",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('SupaGetSalarySkipForDeleting').item.json.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -380,
+        1200
+      ],
+      "id": "802b6340-5966-451f-960b-3cbe61f605e8",
+      "name": "Supabase2"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "salary_skip",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "month",
+              "condition": "eq",
+              "keyValue": "={{$json.last_month}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -840,
+        1200
+      ],
+      "id": "821deed4-93ab-47d0-97b5-d72a51dfacc4",
+      "name": "SupaGetSalarySkipForDeleting"
+    },
+    {
+      "parameters": {
+        "sortFieldsUi": {
+          "sortField": [
+            {
+              "fieldName": "created_at"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.sort",
+      "typeVersion": 1,
+      "position": [
+        3760,
+        2280
+      ],
+      "id": "026e38b6-9483-483f-beb1-39baaddf72c0",
+      "name": "Sort"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json.chatInput\nconst parts = input\n  .split(/(?:and there|also|plus|\\.|,)/i) // rough splitting\n  .map(s => s.trim())\n  .filter(s => s.length > 10); // discard short pieces\n\nreturn parts.map(text => ({ json: { text } }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1340,
+        1580
+      ],
+      "id": "a8f726fe-24f7-4c4c-9660-958ba221af21",
+      "name": "SplitTextForParsing"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "chatgpt-4o-latest",
+          "mode": "list",
+          "cachedResultName": "CHATGPT-4O-LATEST"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Split the user's message into separate sentences, each representing one situation (for example, one job or one salary), and output them as an array of objects, where each sentence is a separate value under the `text` key.\n\nExample input:\n\"I started two jobs: at Hyundai and Kia. At the first I earn 500k, at the second I earn 400k. At both jobs, salary is paid on the 3rd of the month.\"\n\nExpected output:\n[\n  {\n    \"text\": \"I work at Hyundai and earn 500k, salary is paid on the 3rd of the month.\"\n  },\n  {\n    \"text\": \"I work at Kia and earn 400k, salary is paid on the 3rd of the month.\"\n  }\n]\n\nOutput only the array of objects. No extra comments.\n",
+              "role": "system"
+            },
+            {
+              "content": "={{ $json.chatInput }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        -1040,
+        1580
+      ],
+      "id": "cec0c5f3-8c21-41fc-8504-807ff227f2f1",
+      "name": "OpenAISplitter"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.message.content;\nconst parsed = JSON.parse(raw);\n\nreturn parsed.map(item => ({ json: item }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -680,
+        1580
+      ],
+      "id": "814efd4c-2093-4cd0-9231-bea8e1028cd1",
+      "name": "CodeSplitter"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  return {\n    json: item.json.message.content\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -420,
+        1580
+      ],
+      "id": "8afa2907-3157-4e4f-875f-d2b8803d62fd",
+      "name": "Code3"
+    },
+    {
+      "parameters": {
+        "content": "## Automatic cleanup of the salary_skip table",
+        "height": 340,
+        "width": 1360
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1540,
+        1080
+      ],
+      "id": "9e5fe054-9018-4163-a9b1-37155297c15d",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Salary processing",
+        "height": 340,
+        "width": 1660
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1540,
+        640
+      ],
+      "id": "2d578c39-9389-47de-996a-e8712cacefe3",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Multiple request processing",
+        "height": 300,
+        "width": 1400,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1540,
+        1500
+      ],
+      "id": "e95625d7-0b06-4915-ab17-ff38e719b5ba",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## Voice processing",
+        "height": 260,
+        "width": 900
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "503d08ef-aaa8-4ce8-b169-8d4b6604f96a",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json[\"type\"]}}",
+                    "rightValue": "add_task",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "47d64ca9-7ee4-4a16-b2ac-1a1e56c56964"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "0e2dab37-5c27-47ca-befe-9df0e96612a3",
+                    "leftValue": "={{$json[\"type\"]}}",
+                    "rightValue": "done",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "648d3f3b-ca6d-4de6-bf74-ef3c9529e5ae",
+                    "leftValue": "={{$json[\"type\"]}}",
+                    "rightValue": "show_tasks",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1340,
+        640
+      ],
+      "id": "3acd9c81-97b4-4491-be6d-c9e8f8c1cc99",
+      "name": "Action Switch"
+    },
+    {
+      "parameters": {
+        "tableId": "todo_tasks",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "task_name",
+              "fieldValue": "={{ $json.choices[0].message.function_call.arguments.task_name }}"
+            },
+            {
+              "fieldId": "amount",
+              "fieldValue": "={{ $json.choices[0].message.function_call.arguments.amount }}"
+            },
+            {
+              "fieldId": "due_date",
+              "fieldValue": "= {{ $json.choices[0].message.function_call.arguments.due_date }}"
+            },
+            {
+              "fieldId": "frequency",
+              "fieldValue": "={{ $json.choices[0].message.function_call.arguments.frequency }}"
+            },
+            {
+              "fieldId": "is_financial",
+              "fieldValue": "={{ $json.choices[0].message.function_call.arguments.is_financial }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1680,
+        620
+      ],
+      "id": "9cc17c21-a719-4242-9c67-92750ffb76e7",
+      "name": "Add Task to Supabase"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "todo_tasks",
+        "filterType": "string",
+        "filterString": "={   \"task_name\": \"{{ $json.choices[0].message.function_call.arguments.task_name }}\" }",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "is_completed",
+              "fieldValue": "true"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1740,
+        800
+      ],
+      "id": "146b6f8f-4878-4cc7-a0c1-9aaa51d9e3cf",
+      "name": "done Tasks"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "todo_tasks",
+        "limit": 10
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1600,
+        920
+      ],
+      "id": "caad0f9b-ec28-4577-a2cc-28cb790188af",
+      "name": "show tasks"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1926bf6c-b9be-4417-909e-39330b9da9a7",
+              "leftValue": "={{ $json[\"due_date\"] }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1920,
+        640
+      ],
+      "id": "4116733d-cb9d-4a65-877e-19da73fff84d",
+      "name": "If9"
+    },
+    {
+      "parameters": {
+        "resume": "specificTime",
+        "dateTime": "={{$json[\"due_date\"]}}"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2180,
+        660
+      ],
+      "id": "2c80daaa-d68c-46d9-8a8a-eae1bae5f33b",
+      "name": "Wait"
+    },
+    {
+      "parameters": {
+        "chatId": "7789442037",
+        "text": "=Task added: {{$json.task_name}}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2080,
+        800
+      ],
+      "id": "51e7b1f3-1b7a-4ff9-b604-952d58296fcf",
+      "name": "Telegram"
+    },
+    {
+      "parameters": {
+        "chatId": "7789442037",
+        "text": "=Reminder! Don't forget your task: {{$json.taskName}}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2400,
+        720
+      ],
+      "id": "83811768-d4f3-4a1e-9d17-35837d0c787a",
+      "name": "Telegram1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "OpenAI1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI1": {
+      "main": [
+        [
+          {
+            "node": "SetConvertVoiceToText",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger1": {
+      "main": [
+        [
+          {
+            "node": "SupabaseGetUser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI2": {
+      "main": [
+        [
+          {
+            "node": "DateSet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Action Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SupabaseCreateUser": {
+      "main": [
+        [
+          {
+            "node": "IfVoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SupabaseGetUser": {
+      "main": [
+        [
+          {
+            "node": "IfUserExists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DateSet": {
+      "main": [
+        [
+          {
+            "node": "FinanceActionType",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfUserExists": {
+      "main": [
+        [
+          {
+            "node": "IfVoice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SupabaseCreateUser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfVoice": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SetTextMessage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SetTextMessage": {
+      "main": [
+        [
+          {
+            "node": "OpenAI2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SetConvertVoiceToText": {
+      "main": [
+        [
+          {
+            "node": "OpenAI2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FinanceActionType": {
+      "main": [
+        [
+          {
+            "node": "SupaTransactions",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SupaTransactions",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SupaCheckAllDebts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SupaGoals",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SupaCheckOuts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SupaCheckIns",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IfCheckDebtDirection",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SupaCheckGoals",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SupaCheckDebtsForUpdate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SwitchSalary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SupaCheckOuts": {
+      "main": [
+        [
+          {
+            "node": "IfCommentNotEmptyCheckOuts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SupaCheckGoals": {
+      "main": [
+        [
+          {
+            "node": "SendCheckGoals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SupaCheckIns": {
+      "main": [
+        [
+          {
+            "node": "IfCommentNotEmptyCheckIns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfCommentNotEmptyCheckOuts": {
+      "main": [
+        [
+          {
+            "node": "SendCommentNotEmptyCheckOuts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SendCommentEmptyCheckOuts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfCommentNotEmptyCheckIns": {
+      "main": [
+        [
+          {
+            "node": "SendCommentNotEmptyCheckIns",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SendCommentEmptyCheckIns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SupaCheckDebtsForUpdate": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "SendUserReturnedTheDebt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "UpdateDebt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SendUserReturnedTheDebt": {
+      "main": [
+        [
+          {
+            "node": "SupaDeleteDebt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SetNewDebt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SetNewDebt": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SendReturnedTheDebtToUser": {
+      "main": [
+        [
+          {
+            "node": "SupaDeleteDebt1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "SendReturnedTheDebtToUser",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SendUserReturnedTheDebt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfCheckDebtDirection": {
+      "main": [
+        [
+          {
+            "node": "IfCheckDebtWhomExists",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IfCheckDebtWhomExists1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SupaCheckDebtsOweMe": {
+      "main": [
+        [
+          {
+            "node": "SendCheckDebtsOweMe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SupaCheckDebtsIOwe": {
+      "main": [
+        [
+          {
+            "node": "SendCheckDebtsIOwe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfCheckDebtWhomExists": {
+      "main": [
+        [
+          {
+            "node": "SupaCheckDebtsOweMe1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SupaCheckDebtsOweMe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SupaCheckDebtsOweMe1": {
+      "main": [
+        [
+          {
+            "node": "SendCheckDebtsOweMe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IfCheckDebtWhomExists1": {
+      "main": [
+        [
+          {
+            "node": "SupaCheckDebtsIOwe1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SupaCheckDebtsIOwe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SupaCheckDebtsIOwe1": {
+      "main": [
+        [
+          {
+            "node": "SendCheckDebtsIOwe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SupaCheckAllDebts": {
+      "main": [
+        [
+          {
+            "node": "CheckExistingDebt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If3": {
+      "main": [
+        [
+          {
+            "node": "SupaUpdateDebt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SupaCreateDebt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CheckExistingDebt": {
+      "main": [
+        [
+          {
+            "node": "If3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Supabase1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase1": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "SupaGetSkipSalary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SwitchSalary": {
+      "main": [
+        [
+          {
+            "node": "SupaGetIfSalaryExists",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SupaGetSalaryToUpdate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SupaGetSalaryToDelete",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SupaSkipSalaryCreate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SupaNoFixSalaryCreate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SupaGetSalaryToUpdate": {
+      "main": [
+        [
+          {
+            "node": "SupaGetLastSalary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SupaGetSalaryToDelete": {
+      "main": [
+        [
+          {
+            "node": "If4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If4": {
+      "main": [
+        [
+          {
+            "node": "SupaDeleteSalary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SupaGetSkipSalary": {
+      "main": [
+        [
+          {
+            "node": "If5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If5": {
+      "main": [
+        [
+          {
+            "node": "SendSalary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SupaGetLastSalary": {
+      "main": [
+        [
+          {
+            "node": "Sort",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If6": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SendSalaryAmountIsNotDefined",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SupaGetIfSalaryExists": {
+      "main": [
+        [
+          {
+            "node": "If7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If7": {
+      "main": [
+        [
+          {
+            "node": "SupaCreateSalary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SupaGetSalaryToUpdate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "SupaUpdateSalary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SupaNoFixSalaryCreate": {
+      "main": [
+        [
+          {
+            "node": "SupaSkipSalaryCreate1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "SupaGetSalarySkipForDeleting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If8": {
+      "main": [
+        [
+          {
+            "node": "Supabase2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SupaGetSalarySkipForDeleting": {
+      "main": [
+        [
+          {
+            "node": "If8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sort": {
+      "main": [
+        [
+          {
+            "node": "If6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAISplitter": {
+      "main": [
+        [
+          {
+            "node": "CodeSplitter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Action Switch": {
+      "main": [
+        [
+          {
+            "node": "Add Task to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "done Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "show tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Task to Supabase": {
+      "main": [
+        [
+          {
+            "node": "If9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If9": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Telegram1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}
