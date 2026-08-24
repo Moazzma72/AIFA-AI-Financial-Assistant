@@ -105,6 +105,7 @@ The assistant provides financial insights and analytics.
 ---
 
 ## n8n Workflow
+[View the complete n8n Workflow](n8n-financial-assistant-workflow.json)
 
 This n8n workflow automates task creation, reminders, and financial transaction logging by integrating Telegram, OpenAI, and Supabase.
 
